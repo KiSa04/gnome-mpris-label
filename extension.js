@@ -377,55 +377,82 @@ class MprisLabel extends PanelMenu.Button {
 		this.menu.removeAll(); //start by deleting everything
 
 	//player selection submenu:
-		this.players.list.forEach(player => {
-			let settingsMenuItem = new PopupMenu.PopupMenuItem(player.identity);
-			settingsMenuItem.setOrnament(PopupMenu.Ornament.NONE); //to force item horizontal alignment
-			if (AUTO_SWITCH_TO_MOST_RECENT){
-				if(!this.unfocusColor)
-					this._determineColors();
 
-				settingsMenuItem.label.set_style('font-style:italic');
-				settingsMenuItem.set_style('color:' + this.unfocusColor);
-			}
+		/* 
+  		mimic of 
+		*/
 
-			//if item is active player, include DOT if auto mode, CHECK if manual mode
-			if (this.player) {
-				if (this.player.address ==  player.address) {
-					if (AUTO_SWITCH_TO_MOST_RECENT)
-						settingsMenuItem.setOrnament(PopupMenu.Ornament.DOT);
-					else {
-						settingsMenuItem.setOrnament(PopupMenu.Ornament.CHECK);
-						settingsMenuItem.label.set_style('font-weight:bold');
-					}
-				}
-			}
 
-			settingsMenuItem.connect('activate', () => {
-				if (AUTO_SWITCH_TO_MOST_RECENT)
-					this.settings.set_boolean('auto-switch-to-most-recent',false);
+		
 
-				this.players.selected = player; //this.player should sync with this on the next refresh
-				this._refresh();                //so let's refresh right away
-			});
+		const ALBUM_SIZE = this.settings.get_int('album-size');
+let size = Math.floor(Main.panel.height * ALBUM_SIZE / 100);
 
-			this.menu.addMenuItem(settingsMenuItem);
-		});
+const blacklist = ALBUM_BLACKLIST.toLowerCase().replaceAll(' ', '').split(',');
+if (!this.player.identity || !blacklist.includes(this.player.identity.toLowerCase())) {
+    this.icon = this.player.getArtUrlIcon(size);
+}
 
-	//automode entry:
-		if (this.players.list.length > 0){
-			let settingsMenuItem = new PopupMenu.PopupMenuItem('Switch Automatically');
-			settingsMenuItem.setOrnament(PopupMenu.Ornament.NONE); //to force item horizontal alignment
-			if (AUTO_SWITCH_TO_MOST_RECENT) {
-				settingsMenuItem.setOrnament(PopupMenu.Ornament.CHECK);
-				settingsMenuItem.label.set_style('font-weight:bold');
-			}
+// Create a container for the notification
+let notificationBox = new St.BoxLayout({ style_class: 'notification-box' });
 
-			this.menu.addMenuItem(settingsMenuItem);
-			settingsMenuItem.connect('activate', () =>{
-				this.settings.set_boolean('auto-switch-to-most-recent',!AUTO_SWITCH_TO_MOST_RECENT);
-			});
-			this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem()); //add separator
-		}
+// Add album art
+let albumArt = new St.Icon({
+    gicon: this.icon,
+    style_class: 'album-art'
+});
+notificationBox.add(albumArt);
+
+// Add song name
+let songName = new St.Label({
+    text: this.player.currentTrack.title,
+    style_class: 'song-name'
+});
+notificationBox.add(songName);
+
+// Add control buttons container
+let controlButtons = new St.BoxLayout({ style_class: 'control-buttons' });
+
+// Add previous button
+let previousButton = new St.Button({
+    style_class: 'control-button',
+    child: new St.Icon({ icon_name: 'media-skip-backward-symbolic', style_class: 'control-icon' })
+});
+previousButton.connect('clicked', () => {
+    this.player.previous();
+});
+controlButtons.add(previousButton);
+
+// Add play/pause button
+let playPauseButton = new St.Button({
+    style_class: 'control-button',
+    child: new St.Icon({ icon_name: this.player.isPlaying ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic', style_class: 'control-icon' })
+});
+playPauseButton.connect('clicked', () => {
+    this.player.playPause();
+    playPauseButton.child = new St.Icon({
+        icon_name: this.player.isPlaying ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic',
+        style_class: 'control-icon'
+    });
+});
+controlButtons.add(playPauseButton);
+
+// Add next button
+let nextButton = new St.Button({
+    style_class: 'control-button',
+    child: new St.Icon({ icon_name: 'media-skip-forward-symbolic', style_class: 'control-icon' })
+});
+nextButton.connect('clicked', () => {
+    this.player.next();
+});
+controlButtons.add(nextButton);
+
+// Add control buttons to the notification box
+notificationBox.add(controlButtons);
+
+// Add the notification box to the menu or panel
+this.menu.addMenuItem(notificationBox);
+
 
 	//settings shortcut:
 		let settingsMenuItem = new PopupMenu.PopupMenuItem('Settings');
